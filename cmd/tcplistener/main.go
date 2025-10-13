@@ -2,38 +2,10 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"github.com/fenetikm/httpfromtcp/internal/request"
 	"log"
 	"net"
-	"strings"
 )
-
-func getLinesChannel(f io.ReadCloser) <-chan string {
-	lines := make(chan string)
-	go func() {
-		currentline := ""
-		for {
-			b := make([]byte, 8)
-			n, err := f.Read(b)
-			parts := strings.Split(string(b), "\n")
-			currentline += parts[0]
-			if len(parts) == 1 {
-			} else {
-				currentline = strings.Replace(currentline, "\n", "", 1)
-				lines <- currentline
-				// fmt.Printf("read: %s\n", currentline)
-				currentline = parts[1]
-			}
-			if err != nil || n == 0 {
-				break
-			}
-		}
-		lines <- currentline
-		close(lines)
-	}()
-
-	return lines
-}
 
 func main() {
 	l, err := net.Listen("tcp", ":42069")
@@ -49,8 +21,14 @@ func main() {
 			log.Fatal(err)
 		}
 
-		for line := range getLinesChannel(conn) {
-			fmt.Printf("%s\n", line)
+		r, err := request.RequestFromReader(conn)
+		if err != nil {
+			log.Fatal("Request error")
 		}
+
+		fmt.Println("Request line:")
+		fmt.Printf("- Method: %s\n", r.RequestLine.Method)
+		fmt.Printf("- Target: %s\n", r.RequestLine.RequestTarget)
+		fmt.Printf("- Version: %s\n", r.RequestLine.HttpVersion)
 	}
 }

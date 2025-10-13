@@ -32,8 +32,16 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 			return 0, false, fmt.Errorf("Bad header key, bad character")
 		}
 	}
+	fmt.Println(h)
 
-	h[strings.ToLower(string(key))] = parts[1]
+	lk := strings.ToLower(string(key))
+	val := parts[1]
+
+	if v, ok := h[lk]; ok {
+		h[lk] = v + "," + val
+	} else {
+		h[lk] = val
+	}
 
 	return len(data) - 2, false, nil
 }

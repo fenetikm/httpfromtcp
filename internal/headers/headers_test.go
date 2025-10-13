@@ -76,4 +76,18 @@ func TestParseHeaders(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, 0, n)
 	assert.False(t, done)
+
+	// Valid multiple headers, same key
+	headers = NewHeaders()
+	data = []byte("Set-Person: lane-loves-go\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	data = []byte("Set-Person: prime-loves-zig\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	data = []byte("Set-Person: tj-loves-ocaml\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	assert.Equal(t, "lane-loves-go,prime-loves-zig,tj-loves-ocaml", headers["set-person"])
+	assert.False(t, done)
 }

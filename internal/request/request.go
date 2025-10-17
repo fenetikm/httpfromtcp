@@ -27,7 +27,6 @@ type Request struct {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	fmt.Println("parse...")
 	totalBytesParsed := 0
 	for r.state != requestStateDone {
 		n, err := r.parseSingle(data[totalBytesParsed:])
@@ -89,28 +88,20 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 		return n, nil
 	}
 	if r.state == requestStateParsingBody {
-		fmt.Println("parse body")
-		fmt.Println(string(data))
 		if r.Headers.Get("Content-Length") == "" {
-			fmt.Println("content-length empty")
 			r.state = requestStateDone
+			return 0, nil
 		}
 		cl, err := strconv.Atoi(r.Headers.Get("Content-Length"))
 		if err != nil {
 			return 0, fmt.Errorf("Non numeric content length")
 		}
-		fmt.Println("content length")
 		if len(data) < cl {
-			fmt.Println("not enough data yet")
-			fmt.Println(cl)
 			return 0, nil
 		}
 
-		fmt.Println("data:")
-		fmt.Println(string(data))
-		r.Body = data[:cl]
-		fmt.Println(r.Body)
-		fmt.Println(string(r.Body))
+		r.Body = make([]byte, cl)
+		copy(r.Body, data[:cl])
 		r.state = requestStateDone
 		return cl, nil
 	}
@@ -191,6 +182,10 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		numBytesRead, err := reader.Read(buf[readUpTo:])
 		if err != nil {
 			if errors.Is(err, io.EOF) {
+				if req.state == requestStateParsingBody {
+					return nil, fmt.Errorf("Not enough bytes to parse body")
+				}
+
 				req.state = requestStateDone
 				break
 			}

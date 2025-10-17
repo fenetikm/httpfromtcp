@@ -2,6 +2,7 @@ package headers
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -54,4 +55,18 @@ func (h Headers) Get(key string) string {
 	}
 
 	return ""
+}
+
+func (h Headers) ContentLength() (int, error) {
+	cl := h.Get("Content-Length")
+	if cl == "" {
+		return 0, nil
+	}
+
+	cli, err := strconv.Atoi(cl)
+	if err != nil {
+		return 0, fmt.Errorf("Non numeric Content-Length")
+	}
+
+	return cli, nil
 }

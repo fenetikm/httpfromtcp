@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 
 	"github.com/fenetikm/httpfromtcp/internal/headers"
@@ -88,14 +87,15 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 		return n, nil
 	}
 	if r.state == requestStateParsingBody {
-		if r.Headers.Get("Content-Length") == "" {
+		cl, err := r.Headers.ContentLength()
+		if err != nil {
+			return 0, err
+		}
+		if cl == 0 {
 			r.state = requestStateDone
 			return 0, nil
 		}
-		cl, err := strconv.Atoi(r.Headers.Get("Content-Length"))
-		if err != nil {
-			return 0, fmt.Errorf("Non numeric content length")
-		}
+
 		if len(data) < cl {
 			return 0, nil
 		}
@@ -182,7 +182,11 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		numBytesRead, err := reader.Read(buf[readUpTo:])
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				if req.state == requestStateParsingBody {
+				cl, err := req.Headers.ContentLength()
+				if err != nil {
+					return nil, err
+				}
+				if req.state == requestStateParsingBody && cl != 0 {
 					return nil, fmt.Errorf("Not enough bytes to parse body")
 				}
 

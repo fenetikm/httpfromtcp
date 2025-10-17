@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/fenetikm/httpfromtcp/internal/headers"
@@ -14,16 +15,19 @@ type requestState int
 const (
 	requestStateInitialised requestState = iota
 	requestStateParsingHeaders
+	requestStateParsingBody
 	requestStateDone
 )
 
 type Request struct {
 	RequestLine RequestLine
 	Headers     headers.Headers
+	Body        []byte
 	state       requestState
 }
 
 func (r *Request) parse(data []byte) (int, error) {
+	fmt.Println("parse...")
 	totalBytesParsed := 0
 	for r.state != requestStateDone {
 		n, err := r.parseSingle(data[totalBytesParsed:])
@@ -31,11 +35,12 @@ func (r *Request) parse(data []byte) (int, error) {
 			return 0, err
 		}
 
-		// Data doesn't have enough stuff to parse
+		// Data too short, doesn't contain something that can be parsed
 		if n == 0 {
-			return totalBytesParsed, nil
+			break
 		}
 
+		// Something was successfully parsed
 		totalBytesParsed += n
 		if totalBytesParsed > len(data) {
 			return 0, fmt.Errorf("Too many bytes?")
@@ -72,17 +77,42 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 		}
 
 		if done {
-			r.state = requestStateDone
+			r.state = requestStateParsingBody
 			return n, nil
 		}
 
-		// More data
-		// In this case, n shouldn't be 0 though?
+		// More data please
 		if !done && n == 0 {
-			return 0, nil
+			return n, nil
 		}
 
 		return n, nil
+	}
+	if r.state == requestStateParsingBody {
+		fmt.Println("parse body")
+		fmt.Println(string(data))
+		if r.Headers.Get("Content-Length") == "" {
+			fmt.Println("content-length empty")
+			r.state = requestStateDone
+		}
+		cl, err := strconv.Atoi(r.Headers.Get("Content-Length"))
+		if err != nil {
+			return 0, fmt.Errorf("Non numeric content length")
+		}
+		fmt.Println("content length")
+		if len(data) < cl {
+			fmt.Println("not enough data yet")
+			fmt.Println(cl)
+			return 0, nil
+		}
+
+		fmt.Println("data:")
+		fmt.Println(string(data))
+		r.Body = data[:cl]
+		fmt.Println(r.Body)
+		fmt.Println(string(r.Body))
+		r.state = requestStateDone
+		return cl, nil
 	}
 	if r.state == requestStateDone {
 		return 0, fmt.Errorf("Error state is done")

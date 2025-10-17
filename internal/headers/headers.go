@@ -16,7 +16,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 
 	// End of headers
 	if strings.HasPrefix(string(data), "\r\n") {
-		return 0, true, nil
+		return 2, true, nil
 	}
 
 	sh := strings.Split(string(data), "\r\n")
@@ -45,4 +45,13 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	}
 
 	return len(sh[0]) + 2, false, nil
+}
+
+func (h Headers) Get(key string) string {
+	lk := strings.ToLower(string(key))
+	if _, ok := h[lk]; ok {
+		return h[lk]
+	}
+
+	return ""
 }

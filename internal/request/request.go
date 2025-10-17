@@ -9,6 +9,11 @@ import (
 	"github.com/fenetikm/httpfromtcp/internal/headers"
 )
 
+/*
+TODO:
+- Handle body longer than content-length
+*/
+
 type requestState int
 
 const (

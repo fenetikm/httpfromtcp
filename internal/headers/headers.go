@@ -14,11 +14,13 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return 0, false, nil
 	}
 
+	// End of headers
 	if strings.HasPrefix(string(data), "\r\n") {
 		return 0, true, nil
 	}
 
-	s := strings.Trim(string(data), "\r\n ")
+	sh := strings.Split(string(data), "\r\n")
+	s := strings.Trim(sh[0], " ")
 	parts := strings.Split(s, ": ")
 	if len(parts) != 2 {
 		return 0, false, fmt.Errorf("Bad header")
@@ -32,7 +34,6 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 			return 0, false, fmt.Errorf("Bad header key, bad character")
 		}
 	}
-	fmt.Println(h)
 
 	lk := strings.ToLower(string(key))
 	val := parts[1]
@@ -43,5 +44,5 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		h[lk] = val
 	}
 
-	return len(data) - 2, false, nil
+	return len(sh[0]) + 2, false, nil
 }

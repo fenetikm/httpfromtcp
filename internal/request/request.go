@@ -5,22 +5,52 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/fenetikm/httpfromtcp/internal/headers"
 )
 
 type requestState int
 
 const (
 	requestStateInitialised requestState = iota
+	requestStateParsingHeaders
 	requestStateDone
 )
 
 type Request struct {
 	RequestLine RequestLine
-	State       requestState
+	Headers     headers.Headers
+	state       requestState
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	if r.State == requestStateInitialised {
+	totalBytesParsed := 0
+	for r.state != requestStateDone {
+		n, err := r.parseSingle(data[totalBytesParsed:])
+		if err != nil {
+			return 0, err
+		}
+
+		// Data doesn't have enough stuff to parse
+		if n == 0 {
+			return totalBytesParsed, nil
+		}
+
+		totalBytesParsed += n
+		if totalBytesParsed > len(data) {
+			return 0, fmt.Errorf("Too many bytes?")
+		}
+
+		if totalBytesParsed == len(data) {
+			break
+		}
+	}
+
+	return totalBytesParsed, nil
+}
+
+func (r *Request) parseSingle(data []byte) (int, error) {
+	if r.state == requestStateInitialised {
 		rline, n, err := parseRequestLine(string(data))
 		if err != nil {
 			return 0, fmt.Errorf("Error trying to parse line")
@@ -29,11 +59,32 @@ func (r *Request) parse(data []byte) (int, error) {
 		if n == 0 {
 			return 0, nil
 		}
+
 		r.RequestLine = rline
-		r.State = requestStateDone
+		r.state = requestStateParsingHeaders
+		r.Headers = headers.Headers{}
 		return n, nil
 	}
-	if r.State == requestStateDone {
+	if r.state == requestStateParsingHeaders {
+		n, done, err := r.Headers.Parse(data)
+		if err != nil {
+			return 0, err
+		}
+
+		if done {
+			r.state = requestStateDone
+			return n, nil
+		}
+
+		// More data
+		// In this case, n shouldn't be 0 though?
+		if !done && n == 0 {
+			return 0, nil
+		}
+
+		return n, nil
+	}
+	if r.state == requestStateDone {
 		return 0, fmt.Errorf("Error state is done")
 	}
 
@@ -46,15 +97,15 @@ type RequestLine struct {
 	Method        string
 }
 
-const regnurse = "\r\n"
+const crlf = "\r\n"
 const bufsize = 8
 
 func parseRequestLine(line string) (RequestLine, int, error) {
-	if !strings.Contains(line, regnurse) {
+	if !strings.Contains(line, crlf) {
 		return RequestLine{}, 0, nil
 	}
 
-	rline := strings.Split(line, regnurse)
+	rline := strings.Split(line, crlf)
 
 	parts := strings.Split(rline[0], " ")
 	if len(parts) != 3 {
@@ -81,11 +132,11 @@ func parseRequestLine(line string) (RequestLine, int, error) {
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	buf := make([]byte, bufsize, bufsize)
+	buf := make([]byte, bufsize)
 	// Where we have read up to in buffer
 	readUpTo := 0
 	req := &Request{
-		State: requestStateInitialised,
+		state: requestStateInitialised,
 	}
 
 	// What this does:
@@ -98,9 +149,9 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	// - inc readUpTo by the number of bytes read
 	// - try to parse the buf, sliced up to readUpTo
 	// - if we parsed then num of bytes is non-zero
-	// - copy just those bytes into the the buf (if will just be the request then, nothing else)
+	// - copy just those bytes into the the buf (it will just be the request then, nothing else)
 	// - set readUpTo back the num of bytes parsed (?seems redundant?)
-	for req.State != requestStateDone {
+	for req.state != requestStateDone {
 		if readUpTo >= len(buf) {
 			newBuf := make([]byte, len(buf)*2)
 			copy(newBuf, buf)
@@ -110,7 +161,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		numBytesRead, err := reader.Read(buf[readUpTo:])
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				req.State = requestStateDone
+				req.state = requestStateDone
 				break
 			}
 			return nil, err

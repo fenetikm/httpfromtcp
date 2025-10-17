@@ -48,7 +48,7 @@ func TestParseHeaders(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, headers)
 	assert.Equal(t, "localhost:42069", headers["host"])
-	assert.Equal(t, 27, n)
+	assert.Equal(t, 29, n)
 	assert.False(t, done)
 
 	assert.Equal(t, "hey", headers["bob"])
@@ -58,7 +58,7 @@ func TestParseHeaders(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, headers)
 	assert.Equal(t, "application/json", headers["content-type"])
-	assert.Equal(t, 33, n)
+	assert.Equal(t, 35, n)
 	assert.False(t, done)
 
 	// Valid done

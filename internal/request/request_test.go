@@ -117,4 +117,48 @@ func TestRequestHeaders(t *testing.T) {
 	r, err = RequestFromReader(reader)
 	require.NoError(t, err)
 	assert.Empty(t, r.Headers)
+
+	// Test: Multiple same headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nHost: localhost:42069\r\nHost: localhost:11111\r\nAccept: */*\r\n\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+	assert.Equal(t, "localhost:42069,localhost:11111", r.Headers["host"])
+	assert.Equal(t, "*/*", r.Headers["accept"])
+
+	// Test: Duplicate headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nHost: localhost:42069\r\nHost: localhost:42069\r\nAccept: */*\r\n\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+	assert.Equal(t, "localhost:42069,localhost:42069", r.Headers["host"])
+	assert.Equal(t, "*/*", r.Headers["accept"])
+
+	// Test: Case insensitive headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nhost: localhost:42069\r\nHost: localhost:42069\r\nAccept: */*\r\n\r\n",
+		numBytesPerRead: 3,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+	assert.Equal(t, "localhost:42069,localhost:42069", r.Headers["host"])
+	assert.Equal(t, "*/*", r.Headers["accept"])
+
+	// Test: Missing end of headers
+	reader = &chunkReader{
+		data:            "GET / HTTP/1.1\r\nhost: localhost:42069\r\nAccept: */*\r\n",
+		numBytesPerRead: 7,
+	}
+	r, err = RequestFromReader(reader)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+	assert.Equal(t, "localhost:42069", r.Headers["host"])
+	assert.Equal(t, "*/*", r.Headers["accept"])
 }

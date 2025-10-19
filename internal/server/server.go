@@ -1,27 +1,51 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"sync/atomic"
 
+	"github.com/fenetikm/httpfromtcp/internal/request"
 	"github.com/fenetikm/httpfromtcp/internal/response"
 )
 
 type Server struct {
-	listener net.Listener
-	closed   atomic.Bool
+	listener    net.Listener
+	closed      atomic.Bool
+	handlerFunc Handler
 }
 
-func Serve(port int) (*Server, error) {
+type HandlerError struct {
+	StatusCode response.StatusCode
+	Message    string
+}
+
+type Handler func(w io.Writer, req *request.Request) *HandlerError
+
+func (he *HandlerError) Write(w io.Writer) {
+	err := response.WriteStatusLine(w, he.StatusCode)
+	if err != nil {
+		log.Fatalf("Couldn't handle writing status line")
+	}
+	body := he.Message
+	cl := len(body)
+	heads := response.GetDefaultHeaders(cl)
+	response.WriteHeaders(w, heads)
+	w.Write([]byte(body))
+}
+
+func Serve(port int, handler Handler) (*Server, error) {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
 
 	s := Server{
-		listener: l,
+		listener:    l,
+		handlerFunc: handler,
 	}
 	go s.listen()
 
@@ -56,14 +80,26 @@ func (s *Server) listen() {
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 
-	err := response.WriteStatusLine(conn, response.StatusCodeOK)
+	req, err := request.RequestFromReader(conn)
 	if err != nil {
-		log.Fatalf("Couldn't handle writing status line")
+		he := &HandlerError{
+			StatusCode: response.StatusCodeBadRequest,
+			Message:    err.Error(),
+		}
+		he.Write(conn)
+		return
 	}
 
-	h := response.GetDefaultHeaders(0)
-	err = response.WriteHeaders(conn, h)
-	if err != nil {
-		log.Fatalf("Couldn't handle writing headers")
+	buf := bytes.NewBuffer([]byte{})
+	he := s.handlerFunc(buf, req)
+	if he != nil {
+		he.Write(conn)
+		return
 	}
+
+	he = &HandlerError{
+		StatusCode: response.StatusCodeOK,
+		Message:    buf.String(),
+	}
+	he.Write(conn)
 }

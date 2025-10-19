@@ -1,17 +1,40 @@
 package main
 
 import (
-	"github.com/fenetikm/httpfromtcp/internal/server"
+	"io"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/fenetikm/httpfromtcp/internal/request"
+	"github.com/fenetikm/httpfromtcp/internal/response"
+	"github.com/fenetikm/httpfromtcp/internal/server"
 )
 
 const port = 42069
 
+func myHandler(w io.Writer, req *request.Request) *server.HandlerError {
+	if req.RequestLine.RequestTarget == "/yourproblem" {
+		return &server.HandlerError{
+			StatusCode: response.StatusCodeBadRequest,
+			Message:    "Your problem is not my problem\n",
+		}
+	}
+
+	if req.RequestLine.RequestTarget == "/myproblem" {
+		return &server.HandlerError{
+			StatusCode: response.StatusCodeInternalServerError,
+			Message:    "Woopsie, my bad\n",
+		}
+	}
+
+	w.Write([]byte("All good, frfr\n"))
+	return nil
+}
+
 func main() {
-	server, err := server.Serve(port)
+	server, err := server.Serve(port, myHandler)
 	if err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}

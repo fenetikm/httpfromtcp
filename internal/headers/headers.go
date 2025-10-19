@@ -63,6 +63,10 @@ func (h Headers) Get(key string) string {
 	return ""
 }
 
+func (h Headers) Set(key string, value string) {
+	h[key] = value
+}
+
 func (h Headers) ContentLength() (int, error) {
 	cl := h.Get("Content-Length")
 	if cl == "" {

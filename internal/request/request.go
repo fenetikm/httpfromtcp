@@ -38,18 +38,11 @@ func (r *Request) parse(data []byte) (int, error) {
 			return 0, err
 		}
 
-		// Data too short, doesn't contain something that can be parsed
-		if n == 0 {
-			break
-		}
-
 		// Something was successfully parsed
 		totalBytesParsed += n
-		if totalBytesParsed > len(data) {
-			return 0, fmt.Errorf("Too many bytes?")
-		}
 
-		if totalBytesParsed == len(data) {
+		// Data too short, doesn't contain something that can be parsed
+		if n == 0 {
 			break
 		}
 	}
@@ -70,7 +63,6 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 
 		r.RequestLine = rline
 		r.state = requestStateParsingHeaders
-		r.Headers = headers.Headers{}
 		return n, nil
 	}
 	if r.state == requestStateParsingHeaders {
@@ -81,12 +73,6 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 
 		if done {
 			r.state = requestStateParsingBody
-			return n, nil
-		}
-
-		// More data please
-		if !done && n == 0 {
-			return n, nil
 		}
 
 		return n, nil
@@ -96,9 +82,10 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+
 		if cl == 0 {
 			r.state = requestStateDone
-			return 0, nil
+			return len(data), nil
 		}
 
 		if len(data) < cl {
@@ -162,7 +149,9 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	// Where we have read up to in buffer
 	readUpTo := 0
 	req := &Request{
-		state: requestStateInitialised,
+		state:   requestStateInitialised,
+		Body:    make([]byte, 0),
+		Headers: headers.Headers{},
 	}
 
 	// What this does:
@@ -195,9 +184,9 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 					return nil, fmt.Errorf("Not enough bytes to parse body")
 				}
 
-				req.state = requestStateDone
 				break
 			}
+
 			return nil, err
 		}
 		readUpTo += numBytesRead

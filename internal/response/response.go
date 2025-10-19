@@ -3,7 +3,6 @@ package response
 import (
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/fenetikm/httpfromtcp/internal/headers"
 )
@@ -38,36 +37,23 @@ func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
 
 func GetDefaultHeaders(contentLen int) headers.Headers {
 	h := headers.Headers{}
-	_, _, err := h.Parse(fmt.Appendf([]byte{}, "Content-Length: %d\r\n", contentLen))
-	if err != nil {
-		log.Fatalf("Couldn't parse content length header.")
-	}
-
-	_, _, err = h.Parse([]byte("Connection: alive\r\n"))
-	if err != nil {
-		log.Fatalf("Couldn't parse content length header.")
-	}
-
-	_, _, err = h.Parse([]byte("Content-Type: text/plain\r\n"))
-	if err != nil {
-		log.Fatalf("Couldn't parse content length header.")
-	}
+	h.Set("Content-Length", fmt.Sprintf("%d", contentLen))
+	h.Set("Connection", "alive")
+	h.Set("Content-Type", "text/plain")
 
 	return h
 }
 
 func WriteHeaders(w io.Writer, headers headers.Headers) error {
 	for k, v := range headers {
-		_, err := w.Write(fmt.Appendf([]byte{}, "%s: %s\r\n", k, v))
+		_, err := w.Write([]byte(fmt.Sprintf("%s: %s\r\n", k, v)))
 		if err != nil {
+			fmt.Printf("err %v", err)
+			fmt.Println("write err here")
 			return err
 		}
 	}
 
-	_, err := w.Write([]byte(CRLF))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	_, err := w.Write([]byte("\r\n"))
+	return err
 }

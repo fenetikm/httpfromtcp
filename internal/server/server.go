@@ -5,6 +5,8 @@ import (
 	"log"
 	"net"
 	"sync/atomic"
+
+	"github.com/fenetikm/httpfromtcp/internal/response"
 )
 
 type Server struct {
@@ -54,10 +56,14 @@ func (s *Server) listen() {
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 
-	resp := "HTTP/1.1 200 OK\r\n" +
-		"Content-Type: text/plain\r\n" +
-		"Content-Length: 13\r\n\r\n" +
-		"Hello World!\n"
+	err := response.WriteStatusLine(conn, response.StatusCodeOK)
+	if err != nil {
+		log.Fatalf("Couldn't handle writing status line")
+	}
 
-	conn.Write([]byte(resp))
+	h := response.GetDefaultHeaders(0)
+	err = response.WriteHeaders(conn, h)
+	if err != nil {
+		log.Fatalf("Couldn't handle writing headers")
+	}
 }

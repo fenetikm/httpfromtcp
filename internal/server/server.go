@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -23,17 +22,20 @@ type HandlerError struct {
 	Message    string
 }
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
+type Handler func(res *response.Writer, req *request.Request)
 
 func (he *HandlerError) Write(w io.Writer) {
-	err := response.WriteStatusLine(w, he.StatusCode)
+	writer := response.Writer{
+		Response: make([]byte, 0),
+	}
+	err := writer.WriteStatusLine(he.StatusCode)
 	if err != nil {
 		log.Fatalf("Couldn't handle writing status line")
 	}
 	body := he.Message
 	cl := len(body)
 	heads := response.GetDefaultHeaders(cl)
-	response.WriteHeaders(w, heads)
+	writer.WriteHeaders(heads)
 	w.Write([]byte(body))
 }
 
@@ -90,16 +92,9 @@ func (s *Server) handle(conn net.Conn) {
 		return
 	}
 
-	buf := bytes.NewBuffer([]byte{})
-	he := s.handlerFunc(buf, req)
-	if he != nil {
-		he.Write(conn)
-		return
+	w := &response.Writer{
+		Response: make([]byte, 0),
 	}
-
-	he = &HandlerError{
-		StatusCode: response.StatusCodeOK,
-		Message:    buf.String(),
-	}
-	he.Write(conn)
+	s.handlerFunc(w, req)
+	conn.Write(w.Response)
 }

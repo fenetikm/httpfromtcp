@@ -2,7 +2,6 @@ package response
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/fenetikm/httpfromtcp/internal/headers"
 )
@@ -17,19 +16,18 @@ const (
 
 const CRLF = "\r\n"
 
-func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
-	var err error
+type Writer struct {
+	Response []byte
+}
+
+func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
 	switch statusCode {
 	case StatusCodeOK:
-		_, err = w.Write([]byte("HTTP/1.1 200 OK" + CRLF))
+		w.Response = append(w.Response, []byte("HTTP/1.1 200 OK"+CRLF)...)
 	case StatusCodeBadRequest:
-		_, err = w.Write([]byte("HTTP/1.1 400 Bad Request" + CRLF))
+		w.Response = append(w.Response, []byte("HTTP/1.1 400 Bad Request"+CRLF)...)
 	case StatusCodeInternalServerError:
-		_, err = w.Write([]byte("HTTP/1.1 500 Internal Server Error" + CRLF))
-	}
-	if err != nil {
-		fmt.Println("err writing status code")
-		return err
+		w.Response = append(w.Response, []byte("HTTP/1.1 500 Internal Server Error"+CRLF)...)
 	}
 
 	return nil
@@ -44,16 +42,16 @@ func GetDefaultHeaders(contentLen int) headers.Headers {
 	return h
 }
 
-func WriteHeaders(w io.Writer, headers headers.Headers) error {
+func (w *Writer) WriteHeaders(headers headers.Headers) error {
 	for k, v := range headers {
-		_, err := w.Write([]byte(fmt.Sprintf("%s: %s\r\n", k, v)))
-		if err != nil {
-			fmt.Printf("err %v", err)
-			fmt.Println("write err here")
-			return err
-		}
+		w.Response = append(w.Response, []byte(fmt.Sprintf("%s: %s\r\n", k, v))...)
 	}
+	w.Response = append(w.Response, []byte("\r\n")...)
 
-	_, err := w.Write([]byte("\r\n"))
-	return err
+	return nil
+}
+
+func (w *Writer) WriteBody(p []byte) (int, error) {
+	w.Response = append(w.Response, p...)
+	return len(p), nil
 }

@@ -1,4 +1,4 @@
-package httpserver
+package main
 
 import (
 	"github.com/fenetikm/httpfromtcp/internal/server"

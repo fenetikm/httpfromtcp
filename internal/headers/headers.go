@@ -36,22 +36,28 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		}
 	}
 
-	lk := strings.ToLower(string(key))
 	val := parts[1]
 
-	if v, ok := h[lk]; ok {
-		h[lk] = v + "," + val
-	} else {
-		h[lk] = val
+	found := false
+	for k, v := range h {
+		if strings.EqualFold(k, string(key)) {
+			h[k] = v + "," + val
+			found = true
+			break
+		}
+	}
+	if !found {
+		h[string(key)] = val
 	}
 
 	return len(sh[0]) + 2, false, nil
 }
 
 func (h Headers) Get(key string) string {
-	lk := strings.ToLower(string(key))
-	if _, ok := h[lk]; ok {
-		return h[lk]
+	for k, v := range h {
+		if strings.EqualFold(k, key) {
+			return v
+		}
 	}
 
 	return ""

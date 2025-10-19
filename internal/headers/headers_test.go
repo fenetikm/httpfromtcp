@@ -18,7 +18,7 @@ func TestParseHeaders(t *testing.T) {
 	n, done, err := headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "localhost:42069", headers["host"])
+	assert.Equal(t, "localhost:42069", headers.Get("host"))
 	assert.Equal(t, 23, n)
 	assert.False(t, done)
 
@@ -28,7 +28,7 @@ func TestParseHeaders(t *testing.T) {
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "localhost:42069", headers["host"])
+	assert.Equal(t, "localhost:42069", headers.Get("host"))
 	assert.Equal(t, 29, n)
 	assert.False(t, done)
 
@@ -47,7 +47,7 @@ func TestParseHeaders(t *testing.T) {
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "localhost:42069", headers["host"])
+	assert.Equal(t, "localhost:42069", headers.Get("host"))
 	assert.Equal(t, 29, n)
 	assert.False(t, done)
 
@@ -57,7 +57,7 @@ func TestParseHeaders(t *testing.T) {
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "application/json", headers["content-type"])
+	assert.Equal(t, "application/json", headers.Get("content-type"))
 	assert.Equal(t, 35, n)
 	assert.False(t, done)
 
@@ -88,6 +88,6 @@ func TestParseHeaders(t *testing.T) {
 	data = []byte("Set-Person: tj-loves-ocaml\r\n")
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
-	assert.Equal(t, "lane-loves-go,prime-loves-zig,tj-loves-ocaml", headers["set-person"])
+	assert.Equal(t, "lane-loves-go,prime-loves-zig,tj-loves-ocaml", headers.Get("set-person"))
 	assert.False(t, done)
 }

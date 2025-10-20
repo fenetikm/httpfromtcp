@@ -55,3 +55,15 @@ func (w *Writer) WriteBody(p []byte) (int, error) {
 	w.Response = append(w.Response, p...)
 	return len(p), nil
 }
+
+func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
+	w.Response = append(w.Response, []byte(fmt.Sprintf("%x\r\n", len(p)))...)
+	w.Response = append(w.Response, p...)
+	return len(p), nil
+}
+
+func (w *Writer) WriteChunkedBodyDone() (int, error) {
+	w.Response = append(w.Response, []byte("0\r\n")...)
+	w.Response = append(w.Response, []byte("\r\n")...)
+	return 5, nil
+}

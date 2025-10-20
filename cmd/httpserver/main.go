@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/fenetikm/httpfromtcp/internal/request"
@@ -12,8 +15,34 @@ import (
 )
 
 const port = 42069
+const chunkSize = 32
 
 func myHandler(res *response.Writer, req *request.Request) {
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/") {
+		url := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/")
+		rget, err := http.Get("https://httpbin.org/" + url)
+		if err != nil {
+			log.Fatal(err)
+		}
+		res.WriteStatusLine(response.StatusCodeOK)
+		headers := response.GetDefaultHeaders(0)
+		headers.Unset("Content-Length")
+		headers.Set("Transfer-Encoding", "chunked")
+		res.WriteHeaders(headers)
+		buf := make([]byte, chunkSize)
+		for {
+			n, err := rget.Body.Read(buf)
+			if err != nil {
+				log.Fatal(err)
+			}
+			res.WriteChunkedBody(buf[:n])
+			if n < chunkSize {
+				break
+			}
+		}
+		res.WriteChunkedBodyDone()
+	}
+
 	if req.RequestLine.RequestTarget == "/yourproblem" {
 		res.WriteStatusLine(response.StatusCodeBadRequest)
 		body := `<html>

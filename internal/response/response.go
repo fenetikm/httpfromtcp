@@ -68,3 +68,13 @@ func (w *Writer) WriteChunkedBodyDone() (int, error) {
 	w.Response = append(w.Response, []byte("\r\n")...)
 	return 5, nil
 }
+
+func (w *Writer) WriteTrailers(h headers.Headers) error {
+	w.Response = append(w.Response, []byte("0\r\n")...)
+	for k, v := range h {
+		w.Response = append(w.Response, []byte(fmt.Sprintf("%s: %s\r\n", k, v))...)
+	}
+	w.Response = append(w.Response, []byte("\r\n")...)
+
+	return nil
+}

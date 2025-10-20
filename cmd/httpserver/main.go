@@ -1,10 +1,13 @@
 package main
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -27,19 +30,28 @@ func myHandler(res *response.Writer, req *request.Request) {
 		headers := response.GetDefaultHeaders(0)
 		headers.Unset("Content-Length")
 		headers.Set("Transfer-Encoding", "chunked")
+		headers.Set("Trailer", "X-Content-SHA256,X-Content-Length")
 		res.WriteHeaders(headers)
 		buf := make([]byte, chunkSize)
+		fullBody := make([]byte, 0)
 		for {
 			n, err := rget.Body.Read(buf)
 			if err != nil {
 				log.Fatal(err)
 			}
+			fullBody = append(fullBody, buf[:n]...)
 			res.WriteChunkedBody(buf[:n])
 			if n < chunkSize {
 				break
 			}
 		}
-		res.WriteChunkedBodyDone()
+		// res.WriteChunkedBodyDone()
+		sum := sha256.Sum256(fullBody)
+		trailers := headers
+		trailers.Set("X-Content-SHA256", fmt.Sprintf("%x", sum))
+		trailers.Set("X-Content-Length", strconv.Itoa(len(fullBody)))
+		res.WriteTrailers(trailers)
+		return
 	}
 
 	if req.RequestLine.RequestTarget == "/yourproblem" {

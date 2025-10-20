@@ -20,6 +20,19 @@ const port = 42069
 const chunkSize = 32
 
 func myHandler(res *response.Writer, req *request.Request) {
+	if req.RequestLine.RequestTarget == "/video" {
+		data, err := os.ReadFile("assets/vim.mp4")
+		if err != nil {
+			log.Fatal(err)
+		}
+		res.WriteStatusLine(response.StatusCodeOK)
+		headers := response.GetDefaultHeaders(len(data))
+		headers.Set("Content-Type", "video/mp4")
+		res.WriteHeaders(headers)
+		res.WriteBody([]byte(data))
+		return
+	}
+
 	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/") {
 		url := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/")
 		rget, err := http.Get("https://httpbin.org/" + url)

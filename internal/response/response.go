@@ -59,6 +59,7 @@ func (w *Writer) WriteBody(p []byte) (int, error) {
 func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
 	w.Response = append(w.Response, []byte(fmt.Sprintf("%x\r\n", len(p)))...)
 	w.Response = append(w.Response, p...)
+	w.Response = append(w.Response, []byte("\r\n")...)
 	return len(p), nil
 }
 
